@@ -1,11 +1,22 @@
 import sys
+import os
 import numpy as np
+import time
+import argparse
 from pandas import DataFrame
 from matplotlib import pyplot as plt
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 
+
 sys.path.append('..')
+parser = argparse.ArgumentParser(description='run_exp_on_cluster')
+parser.add_argument('--gpu', default=1, type=int)
+parser.add_argument('--slice', default=0, type=int)
+args = parser.parse_args()
+
+os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 
 from exp.exp_neck import train_incrementally, check_stop
 from pipeline.grid_search import grid_search, set_cfg
@@ -19,6 +30,8 @@ params_plot_heatmap = {'axes.labelsize': 45,
                        'text.usetex': True,
                        'figure.figsize': (12.5, 9.5)}
 plt.rcParams.update(params_plot_heatmap)
+
+
 
 size_chunks = [1, 2, 4, 16, 56, 196]
 hidden_sizes = [2**i for i in range(4, 10, 1)]
@@ -36,7 +49,6 @@ optim_cfgs = [
              ]
 exp_cfgs = [dict(data_cfg=data_cfg, model_cfg=model_cfg, optim_cfg=optim_cfg)
             for i, data_cfg in enumerate(data_cfgs) for model_cfg in model_cfgs[i] for optim_cfg in optim_cfgs]
-
 
 for exp_cfg in exp_cfgs:
     best_params = grid_search(exp_cfg, train_incrementally, check_stop, 'train_loss')
@@ -87,6 +99,7 @@ for i, data_cfg in enumerate(data_cfgs):
                        )
             plt.tight_layout()
             plt.show()
+            time.sleep(0.5)
 
 cmap = sns.color_palette("colorblind")
 colors = (cmap[1], cmap[0])
@@ -94,6 +107,7 @@ cmap = LinearSegmentedColormap.from_list('Custom', colors, len(colors))
 
 heatmap = DataFrame(heatmap)
 heatmap = heatmap.pivot('Width', 'Length',  'winner')
+print(heatmap)
 ax = sns.heatmap(heatmap, linewidth=1.,  cmap=cmap)
 zm = np.ma.masked_less(heatmap.values, 0.5)
 x= np.arange(len(heatmap.columns)+1)
@@ -120,4 +134,4 @@ colorbar.set_ticks([0.25,0.75])
 colorbar.set_ticklabels(['BP', 'TP'])
 
 plt.show()
-fig.savefig('amortization.pdf', format='pdf')
+

@@ -3,7 +3,7 @@ import torch
 import time
 from copy import deepcopy
 
-from src.optim.custom_algos import CustomSGD, CustomAdam
+from src.optim.custom_algos import CustomSGD
 from pipeline.save_load import device
 
 
@@ -15,10 +15,52 @@ def run_optim(loss, regularization, net, train_data, test_data, nb_iter_per_log,
               lr_target=0.1,
               input=None, aux_vars=None, log=None,
               verbose=True, logging=True, averaging=0):
+    """
+    Run an optimization algorithm on the specified problem
+
+    Args:
+        loss: (torch.nn.Module) Loss used for the task at hand such as the cross entropy loss
+        regularization: (func) regularization on the parameters of the network
+        net: (torch.nn.Module) recurrent network
+        train_data, test_data: (torch.utils.data.Dataloader) Loaders of training and testing data samples
+        oracle: (str) what kind of oracle (either 'grad' for SGD or 'target_prop' for Target Propagation)
+        lr: (float) stepsize when updating the weights of the network
+                using either a gradient oracle or the direction computed by target propagation
+        max_iter: (int) maximal number of iterations
+        momentum: (float) momentum to used, see torch.optim.SGD
+        reg: (float) regularization to apply when computing regularized inverses
+        diff_mode: (str) how targets are propagated in target propagation see src.model.rnn for more details
+        algo: (str) which optimization algorithm to use ('sgd' for stochastic updates, 'adam' for Adam updates)
+        tol_inv: (float) tolerance parameter when inverting the nonlinear activation functions
+        lr_reverse: (float) stepsize to update a reverse layer when the latter is parameterized
+        noise: (float) noise to add on the outputs when updating a parameterized reverse layer with a mean squared loss,
+                see src.model.rnn for more details
+        lr_target: (float) stepsize to compute the first target by a gradient step on the prediction
+
+        input: (net.state_dict) previously computed weights of the network when the experiment
+                is reloaded to be run a longer time
+        aux_vars: (dict) additional parameters necessary for the optimization
+                that were saved in order to run the algorithm for more time
+        log: (dict) previous log of the experiment run so far when the experiment is reloaded
+        verbose: (bool) whether to print the evolution of the optimization (training loss, test loss, etc...)
+        logging: (bool) whether to log the information of the optimization during training
+        averaging (int) whether to compute the training/testing loss on an average of some numbers of iterates
+
+    Returns:
+        output: (net.parameters) parameters of the optimized network
+        aux_vars: (dict) additional parameters used in the optimization process
+                that can be saved to restart the optimization from the last iteration
+        log: (dict) dictionary containing several measures of performance of the optimization
+                algorithm along the iterations
+
+    """
     saved_params = []
+    # Used another copy of the newtork when one wants to look at
+    # the training/testng loss on an average of the parameters
     aux_net = deepcopy(net) if averaging > 0 else None
     nesterov = True if momentum != 0. else False
     if oracle == 'target_auto_enc':
+        # Build a SGD optimizer that updates the network and the reverse layer with two different set of hyperparameters
         forward_params = [param for name, param in net.named_parameters() if 'reverse' not in name]
         backward_params = [param for name, param in net.named_parameters() if 'reverse' in name]
         optimizer = CustomSGD([{'params': forward_params},
@@ -28,12 +70,13 @@ def run_optim(loss, regularization, net, train_data, test_data, nb_iter_per_log,
         if algo == 'sgd':
             optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=momentum, nesterov=nesterov)
         elif algo == 'adam':
-            optimizer = CustomAdam(net.parameters(), lr=lr)
+            optimizer = torch.optim.Adam(net.parameters(), lr=lr)
         elif algo == 'adagrad':
             optimizer = torch.optim.Adagrad(net.parameters(), lr=lr)
         else:
             raise NotImplementedError
 
+    # Load previously computed input, aux_vars and log or initialize those parameters if needed
     if input is not None:
         net.load_state_dict(input)
         if averaging == 0:
@@ -49,54 +92,68 @@ def run_optim(loss, regularization, net, train_data, test_data, nb_iter_per_log,
                            averaging=averaging, saved_params=saved_params, aux_net=aux_net)
     else:
         init_iter = log['iteration'][-1]
+
     iteration = init_iter+1
     assess_time = True
     start_time = time.time()
+    # Main lop below
     while iteration <= max_iter:
         optimizer.zero_grad()
         for input, label in train_data:
             if iteration > max_iter:
                 break
             optimizer.zero_grad()
-            # input = input.type(torch.get_default_dtype()).to(device)
             input = input.to(device)
             label = label.to(device)
             if oracle == 'grad':
+                # Classical SGD
                 out = loss(net(input), label) + regularization(net)
                 out.backward()
                 optimizer.step()
             elif 'target' in oracle:
+                # Target prop
+                # Extract the type of inverse approximation used
                 reverse_mode = oracle.replace('target_', '')
+                # Compute the sequence of hidden states
                 states, output = net.rep(input)
                 if reverse_mode == 'auto_enc':
+                    # Update the parameterized inverse layer if a parameterized inverse layer was used
                     net.update_reverse(input, states, sigma_noise=noise, reverse_mode=reverse_mode)
                     optimizer.step(1)
                 elif reverse_mode in ['optim', 'optim_variant']:
+                    # Compute the regularized inverse
                     net.update_reverse(reg=reg, reverse_mode=reverse_mode)
+                    # If the inversion failed, save current results and exit
                     if hasattr(net, 'inv_layer') and net.inv_layer is None:
                         collect_info(log, loss, regularization, net, aux_vars, train_data, test_data, iteration,
                                      verbose, logging=logging, averaging=averaging, aux_net=aux_net)
                         print('Fail inverse')
                         log['train_loss'][-1] = float('nan')
                         break
-
+                # Make one step on the last hidden state to define the initial target
                 last_state = deepcopy(output.data)
                 last_state.requires_grad = True
                 out = loss(net.predict(last_state), label)
                 out.backward()
                 target = last_state - lr_target * last_state.grad
+                # Propagate the targets and compute the associated weight update directions
                 net.target_prop(input, states, target, reverse_mode=reverse_mode, diff_mode=diff_mode,
                                 tol_inv=tol_inv)
+                # Make one step along the directions computed
                 if reverse_mode == 'auto_enc':
                     optimizer.step(0)
                 else:
                     optimizer.step()
                 if averaging:
                     pass
+
+            # Save previous parameters if an average of the parameters is used
             if averaging > 0:
                 if len(saved_params) > averaging:
                     saved_params.pop(0)
                 saved_params.append([params for params in net.parameters()])
+
+            # Collect the information on the optimization process
             if iteration % nb_iter_per_log == 0:
                 collect_info(log, loss, regularization, net, aux_vars, train_data, test_data, iteration, verbose,
                              logging=logging, averaging=averaging, saved_params=saved_params, aux_net=aux_net)
@@ -105,11 +162,13 @@ def run_optim(loss, regularization, net, train_data, test_data, nb_iter_per_log,
                     assess_time = False
             iteration += 1
 
+        # Check whether the algorithm diverged
         stopped = check_stop(log)
         if stopped is not None:
             print('{0} {1}'.format(optimizer.__class__.__name__, stopped))
             break
 
+    # Save final computations
     if max_iter % nb_iter_per_log != 0:
         collect_info(log, loss, regularization, net, aux_vars, train_data, test_data, max_iter, verbose,
                      logging=logging, averaging=averaging, saved_params=saved_params)
@@ -125,6 +184,9 @@ def run_optim(loss, regularization, net, train_data, test_data, nb_iter_per_log,
 
 def collect_info(log, loss, regularization, net, aux_vars, train_data, test_data, iteration, verbose, logging,
                  averaging=0, saved_params=None, aux_net=None):
+    """
+    Collect the information on the objective such as training/testing losses
+    """
     log_header = 'Iter\t\t train loss '
     log_format = '{:0.2f} \t\t {:0.6f} '
     if averaging>0:
@@ -188,6 +250,9 @@ def collect_info(log, loss, regularization, net, aux_vars, train_data, test_data
 
 
 def check_stop(log):
+    """
+    Check from the log if the algorithm diverged
+    """
     if log['train_loss'][-1] > 2 * log['train_loss'][0] or math.isnan(log['train_loss'][-1]):
         print(log['train_loss'][-1])
         stopped = 'has diverged'

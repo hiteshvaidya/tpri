@@ -33,6 +33,9 @@ else:
 
 
 def get_exp_folder():
+    """
+    Returns: path to the exp folder
+    """
     path = os.path.abspath(__file__)
     for i in range(2):
         path = os.path.split(path)[0]
@@ -41,6 +44,22 @@ def get_exp_folder():
 
 
 def save_reload_comput(method, check_exp_done, reload_param, **kwargs):
+    """
+    Wrapper that allows to run one experiment sequentially, saving it regularly
+    Args:
+        method: (function) function to run the experiment, e.g. train (see exp_neck)
+        check_exp_done: (function) function to check if the experiment is done, (see exp_neck)
+        reload_param: (str) what is the parameter that changes every time the experiment is relaunched,
+        typically the number of iterations (max_iter)
+        **kwargs: dicts of e.g. data_cfg=..., model_cfg=..., optim_cfg=...
+        that define the parameters to run the experiment
+
+    Returns:
+        output: (depends on the method) the output of the method
+        aux_vars: (depends on the method) the auxiliary variables used by the method anc necessary to restart it
+        log: (dict of lists) the information logged by the method during its iterations
+
+    """
     print(*['{0}:{1}'.format(key, value) for key, value in kwargs.items()], sep='\n')
     assert not any([isinstance(value, list) for cfg in kwargs.values() for value in cfg.values()])
     output, aux_vars, log = load_exp(kwargs)
@@ -54,6 +73,16 @@ def save_reload_comput(method, check_exp_done, reload_param, **kwargs):
 
 
 def load_exp(exp_cfg):
+    """
+    Load the result of a method applied to exp_cfg if possible
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+
+    Returns:
+        out: the output of the method that was run for this configuration if found otherwise None
+
+    """
     results_folder = get_exp_folder() + '/results'
     file_path = get_path_exp(exp_cfg, results_folder) + format_files
     out = [None, None, None]
@@ -65,6 +94,25 @@ def load_exp(exp_cfg):
 
 
 def re_load_exp(exp_cfg, check_exp_done, reload_param='max_iter'):
+    """
+    Given an exp_cfg reload the experiment whose reload_param is the highest
+    Typically, find the results found from the last run of a method with the given parameters
+    with the highest number of iterations
+
+    Currently only works if reload_param was one parameter of the last dict of exp_cfg, typically, optim_cfg
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+        check_exp_done: (function)  function to check if the experiment is done, (see exp_neck)
+        reload_param: (str) what is the variable parameter from which we want to reload the results
+
+    Returns:
+        output: (depends on the method) the output of the method
+        aux_vars: (depends on the method) the auxiliary variables used by the method anc necessary to restart it
+        log: (dict of lists) the information logged by the method during its iterations
+        exp_done: (bool) whether the experiment has already been done or not
+
+    """
     exp_cfg_folder = get_exp_folder() + '/results'
     for cfg in list(exp_cfg.values())[:-1]:
         exp_cfg_folder += '/{0}'.format(var_to_str(cfg))
@@ -92,6 +140,14 @@ def re_load_exp(exp_cfg, check_exp_done, reload_param='max_iter'):
 
 
 def save_exp(exp_cfg, *args):
+    """
+    Save the results (given in args) of the experiment exp_cfg with the nomenclature explained in get_path_exp
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+        *args: results to be stored
+
+    """
     results_folder = get_exp_folder() + '/results'
     file_path = get_path_exp(exp_cfg, results_folder, create_entry=True) + format_files
     with open(file_path, 'wb') as file:
@@ -99,6 +155,12 @@ def save_exp(exp_cfg, *args):
 
 
 def erase_exp(exp_cfg):
+    """
+       Erase the results of exp_cfg if they were done
+       Args:
+           exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                   (each entry being a dictionary)
+       """
     results_folder = get_exp_folder() + '/results'
     file_path = get_path_exp(exp_cfg, results_folder) + format_files
     if os.path.exists(file_path):
@@ -106,6 +168,17 @@ def erase_exp(exp_cfg):
 
 
 def get_path_exp(exp_cfg, source_dir, create_entry=False):
+    """
+    Generate the path to the file that will contain the results fo the experiment
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+        source_dir: (str) source folder (such as ./exp/results with . the root of the project)
+        create_entry: (bool) whether to create a new file if the configuration was not recorded befor or not
+
+    Returns:
+
+    """
     path = source_dir
     for cfg in exp_cfg.values():
         path += '/{0}'.format(var_to_str(cfg))
@@ -116,6 +189,14 @@ def get_path_exp(exp_cfg, source_dir, create_entry=False):
 
 
 def save_grid_search(exp_cfg, best_params):
+    """
+    Save the best_params of a grid search done on exp_cfg
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+        best_params: (dict) best results found by the grid search see the function grid_search
+
+    """
     file_path = get_exp_folder() + '/results/grid_searches' + format_files
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
@@ -134,8 +215,22 @@ def save_grid_search(exp_cfg, best_params):
 
 
 def load_grid_search(exp_cfg):
+    """
+    Look at a table of all gird-searches run before and check if the one given by exp_cfg exp_cfg has already been done
+    If yes return that search.
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+
+    Returns:
+        best_params: (dict) best parameters from the varying parameters in the exp_cfg
+                            (defined by the entries of the dictionary that are lists)
+                           see grid_search for more details
+
+    """
     best_params = None
-    file_path = get_exp_folder() + '/results/grid_searches'+ format_files
+    file_path = get_exp_folder() + '/results/grid_searches' + format_files
+
     if os.path.exists(file_path):
         with open(file_path, 'rb') as file:
             entries = load(file)
@@ -147,6 +242,12 @@ def load_grid_search(exp_cfg):
 
 
 def erase_grid_search_entry(exp_cfg):
+    """
+    Erase a specific entry of the file containing the grid-searches
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+    """
     file_path = get_exp_folder() + '/results/grid_searches'
     with open(file_path + format_files, 'rb') as file:
         entries = load(file)
@@ -158,6 +259,18 @@ def erase_grid_search_entry(exp_cfg):
 
 
 def search_paths_similar_cfgs(exp_cfg, root_path='', variable_param=''):
+    """
+    List all paths that are the same as exp_cfg except for the entry 'variable_param'
+    Used for example to rerun an experiment when the number of iterations vary
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+        root_path: (str) path to the folder to search in
+        variable_param: (str) param that is allowed to be different than the one given in exp_cfg
+
+    Returns:
+
+    """
     exp_cfg_main = deepcopy(exp_cfg)
     found_param = search_param_in_exp_cfg(exp_cfg_main, variable_param, del_param=True)
     assert found_param is not None
@@ -175,6 +288,19 @@ def search_paths_similar_cfgs(exp_cfg, root_path='', variable_param=''):
 
 
 def search_param_in_exp_cfg(exp_cfg, param_to_search, del_param=False):
+    """
+    Given an exp_cfg (i.e. a dict of dicts) find the entry in one of the dictionaries that corresponds to 'param_to_search'
+    Erase that entry from exp_cfg if del_param=True
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+        param_to_search: (str) parameter to find from the exp_cfg
+        del_param: (bool) whether to erase the entry found in exp_cfg or not
+
+    Returns:
+        found_param: value of 'param_to_search' found in exp_cfg
+
+    """
     found_param = None
     already_seen = False
     for cfg in exp_cfg.values():
@@ -188,6 +314,15 @@ def search_param_in_exp_cfg(exp_cfg, param_to_search, del_param=False):
 
 
 def var_to_str(var):
+    """
+    Given an object var generate a str that identifies this object and can easily be readable
+    Args:
+        var: (dict or list or set or tuple or float or int or str or None or torch.Tensor)
+            object from which we want to generate an automatic nomenclature
+
+    Returns:
+        var_str: (str) string that corresponds to the given object
+    """
     translate_table = {ord(c): None for c in ',()[]'}
     translate_table.update({ord(' '): '_'})
 
@@ -218,6 +353,15 @@ def var_to_str(var):
 
 
 def get_list_of_files(dir_name):
+    """
+    Generate a list of all the files contained in a directory
+    Args:
+        dir_name: (str) directory to search from
+
+    Returns:
+        all_files: (list of str) list of all paths to files in this directory
+
+    """
     all_files = list()
     if os.path.exists(dir_name):
         list_of_files = os.listdir(dir_name)
@@ -230,24 +374,24 @@ def get_list_of_files(dir_name):
     return all_files
 
 
-def summarize_folder_by_dict(folder):
-    summary_file_path = folder + '/summary.txt'
-    if os.path.exists(summary_file_path):
-        with open(summary_file_path, 'w') as file:
-            file.write('')
-    all_files = get_list_of_files(folder)
-    if len(all_files) > 0:
-        for file_path in all_files:
-            with open(file_path, 'rb') as file:
-                file_contents = load(file)
-
-            with open(summary_file_path, 'a') as file:
-                file.write(os.path.split(file_path)[1] + '\n')
-                for cfg in file_contents[0]:
-                    file.write(str(cfg) + '\n')
-                for file_content in file_contents[1:]:
-                    if isinstance(file_content, dict):
-                        file.write(str(file_content) + '\n')
-                file.write('\n')
+# def summarize_folder_by_dict(folder):
+#     summary_file_path = folder + '/summary.txt'
+#     if os.path.exists(summary_file_path):
+#         with open(summary_file_path, 'w') as file:
+#             file.write('')
+#     all_files = get_list_of_files(folder)
+#     if len(all_files) > 0:
+#         for file_path in all_files:
+#             with open(file_path, 'rb') as file:
+#                 file_contents = load(file)
+#
+#             with open(summary_file_path, 'a') as file:
+#                 file.write(os.path.split(file_path)[1] + '\n')
+#                 for cfg in file_contents[0]:
+#                     file.write(str(cfg) + '\n')
+#                 for file_content in file_contents[1:]:
+#                     if isinstance(file_content, dict):
+#                         file.write(str(file_content) + '\n')
+#                 file.write('\n')
 
 

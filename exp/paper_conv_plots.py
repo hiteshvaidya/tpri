@@ -5,6 +5,11 @@ from matplotlib import pyplot as plt
 
 sys.path.append('..')
 
+parser = argparse.ArgumentParser(description='run_exp_on_cluster')
+parser.add_argument('--exp', default='mnist', type=str)
+args = parser.parse_args()
+
+
 from exp.plot_tools import plot, nice_writing
 from exp.exp_neck import run_exp
 
@@ -28,12 +33,20 @@ def add_task(len=30):
 def tempord_task(len):
     data_cfg = dict(dataset='temp_ord_1bit', seed=1, max_length=len, fixed_length=True)
     model_cfg = dict(network='rnn', loss='cross_entropy', input_size=6, dim_output=4, hidden_size=100)
-    max_iter = 40000
-    optim_cfgs = [
-                  dict(oracle='target_optim', max_iter=max_iter, lr=1e-2,
-                       lr_target=1e-2, reg=1., diff_mode='linearized'),
-                  dict(oracle='grad', max_iter=max_iter, momentum=0.9, lr=1e-5),
-                  ]
+    if len == 120:
+        max_iter = 48000
+        optim_cfgs = [
+            dict(oracle='target_optim', max_iter=max_iter, lr=1e-2,
+                 lr_target=1e-2, reg=1., diff_mode='linearized'),
+            dict(oracle='grad', max_iter=max_iter, momentum=0.9, lr=1e-5),
+        ]
+    else:
+        max_iter = 40000
+        optim_cfgs = [
+            dict(oracle='target_optim', max_iter=max_iter, lr=1e-1,
+                 lr_target=1e-2, reg=10., diff_mode='linearized'),
+            dict(oracle='grad', max_iter=max_iter, momentum=0.9, lr=1e-5),
+        ]
     info_exp = run_exp(data_cfg, model_cfg, optim_cfgs)
     return info_exp
 
@@ -44,7 +57,9 @@ def mnist_seq(permut=False, time=False, momentum=None):
         data_cfg.update(with_permut=True)
     model_cfg = dict(network='rnn', loss='cross_entropy', reg_param=0., input_size=1, hidden_size=100, dim_output=10)
     max_iter = 12000 if time else 40000
-    lr_grad = 1e-4 if permut else 1e-6
+    lr_grad = 1e-4 if permut else 1e-5
+    if time:
+        lr_grad = 1e-6
     max_iter_grad = 13*max_iter if time else max_iter
     optim_cfgs = [dict(oracle='target_optim', max_iter=max_iter, lr=1e-1,
                        lr_target=1e-4, reg=1.,
@@ -64,9 +79,10 @@ def compa_cifar():
     data_cfg = dict(dataset='CIFAR', batch_size=16)
     model_cfg = dict(network='rnn', loss='cross_entropy', input_size=1, hidden_size=100, dim_output=10)
     max_iter = 8000
-    optim_cfgs = [dict(oracle='target_optim', max_iter=max_iter, lr=1e-1, lr_target=1e-2, reg=1e-1),
-                  dict(oracle='grad', max_iter=max_iter, lr=1e-3)
-                  ]
+    optim_cfgs = [
+        dict(oracle='target_optim', max_iter=max_iter, lr=1e-2, lr_target=1e-2, reg=1e1, diff_mode='linearized'),
+        dict(oracle='grad', max_iter=max_iter, lr=1e-3)
+        ]
     info_exp = run_exp(data_cfg, model_cfg, optim_cfgs)
     return info_exp
 
@@ -76,7 +92,7 @@ def compa_gru():
     model_cfg = dict(network='gru', loss='cross_entropy', input_size=1, hidden_size=100, dim_output=10)
     max_iter = 8000
     optim_cfgs = [
-        dict(oracle='target_optim', max_iter=max_iter, lr=1e-1, lr_target=1e-2, reg=1e0),
+        dict(oracle='target_optim', max_iter=max_iter, lr=1e-1, lr_target=1e-2, reg=1e0, diff_mode='lienarized'),
         dict(oracle='grad', max_iter=max_iter, lr=1e-2)
         ]
     info_exp = run_exp(data_cfg, model_cfg, optim_cfgs)
@@ -106,7 +122,6 @@ def compa_inv_grad_diff_targ():
                        lr_target=1e-4, reg=1., diff_mode='diff'),
                   dict(oracle='target_auto_enc', max_iter=max_iter, lr=1e-2,
                        lr_target=1e-7, lr_reverse=1e-8, noise=0.1, diff_mode='diff')
-
                   ]
     info_exp = run_exp(data_cfg, model_cfg, optim_cfgs)
     return info_exp
@@ -187,6 +202,7 @@ def paper_plots(exp='synth'):
                    loc='upper center',
                    ncol=len(labels) - 1,
                    bbox_to_anchor=(0.5, top_margin), handletextpad=0.3, columnspacing=0.5,
+                   # mode='expand'
                    )
     else:
         labels[0] = r'$\gamma_h$'
@@ -195,8 +211,6 @@ def paper_plots(exp='synth'):
                    bbox_to_anchor=(top_margin, 0.5)
                    )
     plt.show()
-    fig.savefig('exp_' + exp + '.pdf', format='pdf', bbox_inches='tight')
-
 
 paper_plots('synth')
 paper_plots('images')

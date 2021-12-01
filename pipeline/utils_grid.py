@@ -24,6 +24,19 @@ def build_list_from_grid(params_grid):
 
 
 def build_grid_from_cfg(exp_cfg):
+    """
+    Scan the exp_cfg and extract entries that are lists to be searched on by e.g. a grid-search
+    Args:
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+                some entries of these dictionaries must be lists that are used to define a grid of parameters
+
+    Returns:
+        params_grid: (dict) dictionary of the form dict(param1=[], param2=[], ...)
+                    where each param_i corresponds to one parameter in the exp_cfg that was given in the form of a list
+                    the list is then the corresponding value of param_i in this dictionary
+
+    """
     params_grid = dict()
     for cfg in exp_cfg.values():
         for key, value in cfg.items():
@@ -43,6 +56,17 @@ def build_list_exp(exp_cfgs):
     by assigning different portions of the list to each node
 
     The function is only used to run experiments on a cluster, all results are saved and then used by other functions
+
+    Args:
+        exp_cfgs: (list of dicts of dicts) [exp_cfg1, exp_cfg2, ...]
+                where each exp_cfg is of the form e.g. exp_cfg_i=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
+                some entries of these dictionaries can be lists that are used to define a grid of parameters
+
+    Returns:
+        params_grid: (dict) dictionary of the form dict(param1=[], param2=[], ...)
+                    where each param_i corresponds to one parameter in the exp_cfg that was given in the form of a list
+                    the list is then the corresponding value of param_i in this dictionary
     """
     exp_cfgs_list = list()
     for exp_cfg in exp_cfgs:

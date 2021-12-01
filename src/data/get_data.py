@@ -36,7 +36,6 @@ def get_data(dataset='synth', nb_train=None, batch_size=None,
         max_length (int): max length for the synthetic tasks (for dataset in ['temp_ord_1_bit', 'addtask'])
         fixed_length (bool): whether the lengths in the synthetic tasks vary from a mini-batch to the other.
         with_permut (bool): whether to permute the pixels of the images (for dataset in ['MNIST', 'CIFAR'])
-        grayscale (bool): whether to consider the grayscale image (for dataset='CIFAR')
         seed (int): random seed fixed for torch
 
     Returns:
@@ -195,6 +194,7 @@ class Vectorize(object):
 
     def __call__(self, tensor):
         return tensor.view(-1, self.size_chunk)
+
 
 
 class Permut():

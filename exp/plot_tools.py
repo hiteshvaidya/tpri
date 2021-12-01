@@ -35,7 +35,7 @@ nice_writing = dict(train_loss='Train Loss', test_loss='Test Loss',
                     state_stepsize='State step-size', iteration='Iterations',
                     objective='Obj', accuracy='Accuracy',
                     SoftSGD='MorSGD', SGD='SGD',
-                    grad='BP', target_optim_diff='DTP', target_auto_enc_diff='DTP-PI',
+                    grad='BP', target_optim_diff='DTP-RI', target_auto_enc_diff='DTP-PI',
                     gradadam='BP Adam',
                     lr=r'Stepsize $\gamma_\theta$',
                     target_optim_linearized='TP',
@@ -81,6 +81,8 @@ def plot(info_exp, info_to_plot, ax_to_plot=None, with_pal=True):
             ax.locator_params(axis='y', nbins=4)
     else:
         pass
+        # ax.set_ylim(top=info_exp[info_to_plot].iloc[0] + 10)
+        # ax.locator_params(axis='y')
     ax.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
     return fig
 

@@ -5,22 +5,27 @@ CRED = '\033[91m'
 CEND = '\033[0m'
 
 
-def grid_search(exp_cfg, method, check_stop, criterion):
+def grid_search(exp_cfg, method, check_stop, criterion, criterion_measure='min_area'):
     """
     Gird search on the experiment configuration exp_cfg for the given method.
     Args:
-        exp_cfg: (dict of dicts) such as data_cfg, model_cfg, optim_cfg (each being a dictionary)
+        exp_cfg: (dict of dicts) such as exp_cfg=(data_cfg=..., model_cfg=..., optim_cfg=...)
+                (each entry being a dictionary)
                 some entries of these dictionaries must be lists that are used to define a grid of parameters,
                 this grid of parameters is transformed in a list of all possible combinations,
                 the best parameters for the grid are returned
         method: (function) function to run the experiment, e.g. train (see exp_neck)
-        check_stop: (function) function to check if the experiment diverged, (see e.g. exp_neck)
-        criterion: (str) what should be measured from the information logged in the experiment, e.g. 'train_loss'
+        check_stop: (function) function to check if the experiment diverged, (see exp_neck)
+        criterion: (str) what is the relevant information to look at from the experiment
+                    to rank the different configurations and extract the best one, e.g. 'train_loss'
+        criterion_measure: (str) method to measure the criterion such as the minimal area under the curve
 
     Returns:
         best_params: (dict) best parameters from the varying parameters in the exp_cfg
                             (defined by the entries of the dictionary that are lists)
-
+                            So typically if optim_cfg had two entries lr=[...], reg=[...] that were lists,
+                            all possible combinations of those two lists were run and the best_params would be
+                            best_params = dict(lr=best_lr, reg=best_reg)
     """
     best_params = load_grid_search(exp_cfg)
     if best_params is None:
@@ -37,10 +42,19 @@ def grid_search(exp_cfg, method, check_stop, criterion):
             if stopped == 'diverged':
                 measure = 10 ** 10
             else:
-                measure = np.trapz(info_exp[criterion], info_exp['iteration'])
+                if 'area' in criterion_measure:
+                    measure = np.trapz(info_exp[criterion], info_exp['iteration'])
+                else:
+                    raise NotImplementedError
 
             best_measure_cfg.append(measure)
-        idx_best = int(np.argmin(np.array(best_measure_cfg)))
+
+        if 'min' in criterion_measure:
+            idx_best = int(np.argmin(np.array(best_measure_cfg)))
+        elif 'max' in criterion_measure:
+            idx_best = int(np.argmax(np.array(best_measure_cfg)))
+        else:
+            raise NotImplementedError
         best_params = params_list[idx_best]
 
         save_grid_search(exp_cfg, best_params)
