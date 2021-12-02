@@ -1,5 +1,5 @@
-# Target Propagation through Layer Inverses
-The present code implements an ideal formulation of Target Propagation using regularized inverses
+# Target Propagation via Regularized Inversion
+The present code implements an ideal formulation of target propagation using regularized inverses
 computed analytically rather than using some reverse layer optimized to approximate the inverse.
 
 The code focuses on Recurrent Neural Networks for which vanishing/exploding gradients phenomena are known to impede the performance of a classical gradient back-propagation formula. The experiments demonstrate that TP may be beneficial for optimizing long sequences with RNNs.
@@ -33,14 +33,14 @@ To reproduce the plots presented in the paper run from the folder exp
 You can report issues and ask questions in the repository's issues page. If you choose to send an email instead, please direct it to Vincent Roulet at vroulet@uw.edu and include [tpri] in the subject line.
 
 ## Paper
-**Target Propagation through Layer Inverses**  
+**Target Propagation via Regularized Inversion**  
 Vincent Roulet, Zaid Harchaoui.   
 *arXiv preprint*  
 
 Reference
 ```
 @article{roulet2021target,
-  title={Target Propagation through Layers Inverses},
+  title={Target Propagation via Regularized Inversion},
   author={Roulet, Vincent and Harchaoui, Zaid},
   journal={arXiv preprint}
 }
