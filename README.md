@@ -37,7 +37,7 @@ You can report issues and ask questions in the repository's issues page. If you 
 Vincent Roulet, Zaid Harchaoui.   
 *arXiv preprint*  
 
-Reference
+If you use this code please cite the paper using the bibtex reference below.
 ```
 @article{roulet2021target,
   title={Target Propagation via Regularized Inversion},
