@@ -2,13 +2,12 @@
 The present code implements an ideal formulation of target propagation using regularized inverses
 computed analytically rather than using some reverse layer optimized to approximate the inverse.
 
-The code focuses on Recurrent Neural Networks for which vanishing/exploding gradients phenomena are known to impede the performance of a classical gradient back-propagation formula. The experiments demonstrate that TP may be beneficial for optimizing long sequences with RNNs.
+This code provides a simple and efficient implementation of stochastic training using target propagation (TP). The main idea is to use regularized inverses computed analytically rather than previously proposed approximate inverses (auto-encoders, etc.) for the target propagation.
+We focus on Recurrent Neural Networks to illustrate the benefits of TP to train networks involving long compositions.
+Indeed the experiments suggest that TP may be beneficial to train RNNs on long sequences.
+The target_prop function is involved in "src/model/rnn.py", while the training is done in "src/optim/run_optimizer.py"
 
-The main part of the code consisted in modifying the structure of classical RNNs by adding a target_prop function
-in the definition of the RNN, see src/model/rnn.py.
-The optimization is done in src/optim/run_optimizer.py.
-The following code is provided to reproduce the plots in the paper.
-
+The code allows to reproduce the results presented in the paper below.
 
 ## Setup
 Create a conda environment and activate it  
