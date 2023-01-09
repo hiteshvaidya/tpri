@@ -36,6 +36,7 @@ def get_data(dataset='synth', nb_train=None, batch_size=None,
         max_length (int): max length for the synthetic tasks (for dataset in ['temp_ord_1_bit', 'addtask'])
         fixed_length (bool): whether the lengths in the synthetic tasks vary from a mini-batch to the other.
         with_permut (bool): whether to permute the pixels of the images (for dataset in ['MNIST', 'CIFAR'])
+        grayscale (bool): whether to consider the grayscale image (for dataset='CIFAR')
         seed (int): random seed fixed for torch
 
     Returns:
@@ -61,6 +62,15 @@ def get_data(dataset='synth', nb_train=None, batch_size=None,
                            )
         train_data = DataLoader(train_set, batch_size=None)
         test_data = DataLoader(test_set, batch_size=None)
+    elif dataset == 'penn_treebank':
+        if nb_train is None:
+            nb_train = 929589
+        data_dir = os.path.dirname(os.path.abspath(__file__))
+        corpus = Corpus(os.path.join(data_dir, 'penn-treebank'))
+        train_set = PennTreeData(corpus.train, max_length, nb_train)
+        test_set = PennTreeData(corpus.test, max_length, int(nb_train/11.28))
+        train_data = DataLoader(train_set, batch_size=batch_size, drop_last=True)
+        test_data = DataLoader(test_set, batch_size=batch_size, drop_last=True)
     else:
         if nb_train is None:
             nb_train = nb_data_ref[dataset]
@@ -242,7 +252,67 @@ class SubsetSampler(Sampler):
         return len(self.indices)
 
 
+class Dictionary:  # dict for mapping words to index, and list for reverse lookup
+    def __init__(self):
+        self.word_to_ix = {}
+        self.ix_to_word = []
 
+    def __len__(self):
+        return len(self.ix_to_word)
+
+    def add_word(self, word):
+        if word not in self.word_to_ix:
+            self.ix_to_word.append(word)
+            self.word_to_ix[word] = len(self.ix_to_word) - 1
+        return self.word_to_ix[word]
+
+
+class Corpus:
+    def __init__(self, path):
+        self.dictionary = Dictionary()
+        self.train = self.tokenize(os.path.join(path, 'ptb.train.txt'))
+        self.test = self.tokenize(os.path.join(path, 'ptb.test.txt'))
+
+    def tokenize(self, path):
+        # first add words to dictionary
+        with open(path) as f:
+            tokens = 0
+            for line in f:
+                words = line.split() + ['<eos>']
+                tokens += len(words)
+                for word in words:
+                    self.dictionary.add_word(word)
+
+        # then return tokenized file content
+        with open(path) as f:
+            ids = torch.LongTensor(tokens)
+            token = 0
+            for line in f:
+                words = line.split() + ['<eos>']
+                for word in words:
+                    ids[token] = self.dictionary.word_to_ix[word]
+                    token += 1
+        return ids
+
+
+class PennTreeData(Dataset):
+    def __init__(self, data, length_seq, nb_train):
+        self.data = data[:nb_train]
+        self.length_seq = length_seq
+
+    def __len__(self):
+        return len(self.data) - self.length_seq - 1
+
+    def __getitem__(self, index):
+        seq_len = min(self.length_seq, len(self.data) - index - 1)
+        data = self.data[index:index + seq_len]
+        target = self.data[index + 1:index + seq_len + 1]
+        return data, target
+
+
+if __name__ == '__main__':
+    train_data, test_data = get_data(dataset='penn_treebank', batch_size=4096,
+                                     max_length=64)
 
 
 

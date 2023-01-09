@@ -39,14 +39,13 @@ def grid_search(exp_cfg, method, check_stop, criterion, criterion_measure='min_a
             print(CRED + 'Grid search percentage {0:2.0f}'.format(float(i/len(params_list))*100) + CEND)
             _, _, info_exp = method(**search_exp_cfg)
             stopped = check_stop(info_exp)
-            if stopped == 'diverged':
+            if stopped == 'has diverged':
                 measure = 10 ** 10
             else:
                 if 'area' in criterion_measure:
                     measure = np.trapz(info_exp[criterion], info_exp['iteration'])
                 else:
                     raise NotImplementedError
-
             best_measure_cfg.append(measure)
 
         if 'min' in criterion_measure:

@@ -1,7 +1,6 @@
 import seaborn as sns
 import os
 from numpy import trapz
-import math
 from pandas import DataFrame
 from matplotlib import pyplot as plt
 

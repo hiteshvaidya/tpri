@@ -1,28 +1,16 @@
-import sys
 import os
 import numpy as np
 import time
-import argparse
 from pandas import DataFrame
 from matplotlib import pyplot as plt
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 
-
-sys.path.append('..')
-parser = argparse.ArgumentParser(description='run_exp_on_cluster')
-parser.add_argument('--gpu', default=1, type=int)
-parser.add_argument('--slice', default=0, type=int)
-args = parser.parse_args()
-
-os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
-
 from exp.exp_neck import train_incrementally, check_stop
 from pipeline.grid_search import grid_search, set_cfg
 from exp.plot_tools import plot, nice_writing
 
-params_plot_heatmap = {'axes.labelsize': 45,
+params_plot_heatmap = {'axes.labelsize': 50,
                        'legend.fontsize': 70,
                        'xtick.labelsize': 40,
                        'ytick.labelsize': 40,
@@ -32,13 +20,12 @@ params_plot_heatmap = {'axes.labelsize': 45,
 plt.rcParams.update(params_plot_heatmap)
 
 
-
+# Compute heatmap
 size_chunks = [1, 2, 4, 16, 56, 196]
 hidden_sizes = [2**i for i in range(4, 10, 1)]
 
 lr_range = [10**(-i) for i in range(7)]
 lr_targ_range = [10**(-i) for i in range(4)]
-
 
 data_cfgs = [dict(dataset='MNIST', batch_size=512, size_chunk=k) for k in size_chunks]
 model_cfgs = [[dict(network='rnn', loss='cross_entropy', input_size=k, hidden_size=j, dim_output=10)
@@ -101,13 +88,13 @@ for i, data_cfg in enumerate(data_cfgs):
             plt.show()
             time.sleep(0.5)
 
+# Plot heatmap
 cmap = sns.color_palette("colorblind")
 colors = (cmap[1], cmap[0])
 cmap = LinearSegmentedColormap.from_list('Custom', colors, len(colors))
 
 heatmap = DataFrame(heatmap)
 heatmap = heatmap.pivot('Width', 'Length',  'winner')
-print(heatmap)
 ax = sns.heatmap(heatmap, linewidth=1.,  cmap=cmap)
 zm = np.ma.masked_less(heatmap.values, 0.5)
 x= np.arange(len(heatmap.columns)+1)
@@ -133,5 +120,8 @@ colorbar = ax.collections[0].colorbar
 colorbar.set_ticks([0.25,0.75])
 colorbar.set_ticklabels(['BP', 'TP'])
 
-plt.show()
+exp_folder = os.path.dirname(os.path.abspath(__file__))
+plots_folder = os.path.join(exp_folder, 'plots')
 
+plt.show()
+fig.savefig(os.path.join(plots_folder, 'heatmap_perf.pdf'), format='pdf')

@@ -1,9 +1,9 @@
 import torch
 from copy import deepcopy
-from torch import nn as nn
 from torch.nn.modules import GRU as GRULoop
 from pipeline.save_load import device
 import torch.nn.functional as F
+from src.model.rnn import Layer
 from src.model.rnn import init_params
 from src.optim.inner_algos import InnerBarzilaiBorwein
 
@@ -12,19 +12,12 @@ class GRU(torch.nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         """
         Recall the architecture
-        r_t = sigmoid(W_{ir} x_t + W_{hr} h_{t-1} + b_{ir} + b_{hr})
-        z_t = sigmoid(W_{iz} x_t + W_{hz} h_{t-1} + b_{iz} + b_{hz})
-        n_t = tanh(W_{in} x_t + b_{in} + r_t odot (W_{hn} h_{t-1} + b_{hn}))
-        h_t = (1 - z_t) odot h_{t-1} + z_t odot n_t
+        r_t = sigmoid(W_{ir} x_t + W_{hr} h_{t-1} + b_{ir} + b_{hr}) \\
+		z_t = sigmoid(W_{iz} x_t + W_{hz} h_{t-1} + b_{iz} + b_{hz}) \\
+		n_t = tanh(W_{in} x_t + b_{in} + r_t odot (W_{hn} h_{t-1} + b_{hn})) \\
+		h_t = (1 - z_t) odot h_{t-1} + z_t odot n_t
 
-        Weights are concatenated in the order r, z, n for the W_{h_}, W_{i_} and the biases
-
-        Implements target prop as in the function rnn, except that the approximate inverses
-        are computed by regularized inverses of each of the linear operations
-
-        See "Target Propagation via Regularized Inversion" paper for the detailed derivations
-
-        The present code implements Target Propagation only through the Jacobian of an approximate inverse
+		Weights are concatenated in the order r, z, n for the W_{h_}, W_{i_} and the biases
         """
 
         super(GRU, self).__init__()
@@ -37,8 +30,7 @@ class GRU(torch.nn.Module):
                         self.embedding.bias_ih_l0[hidden_size*i:hidden_size*(i+1)])
             init_params(self.embedding.weight_hh_l0[hidden_size*i:hidden_size*(i+1)],
                         self.embedding.bias_hh_l0[hidden_size*i:hidden_size*(i+1)])
-        self.predict = nn.Linear(hidden_size, output_size, bias=True)
-
+        self.predict = Layer(hidden_size, output_size)
         init_params(self.predict.lin.weight, self.predict.lin.bias)
         # Inv layers are listed in the same order as the weihts
         self.inv_layer = [None for i in range(3)]
@@ -127,10 +119,10 @@ class GRU(torch.nn.Module):
 
     def update_reverse(self, inputs=None, hiddens=None, reverse_mode='auto_enc', sigma_noise=0., reg=0., mse=False):
         for i in range(3):
-            try:
-                dimh = self.hidden_size
-                W = self.embedding.weight_hh_l0[i*dimh:(i+1)*dimh]
-                self.inv_layer[i] = torch.cholesky(W.t().mm(W) + reg * torch.eye(W.shape[0], device=device))
-            except:
-                self.inv_layer = None
+            # try:
+            dimh = self.hidden_size
+            W = self.embedding.weight_hh_l0[i*dimh:(i+1)*dimh]
+            self.inv_layer[i] = torch.cholesky(W.t().mm(W) + reg * torch.eye(W.shape[0], device=device))
+            # except:
+            #     self.inv_layer = None
 

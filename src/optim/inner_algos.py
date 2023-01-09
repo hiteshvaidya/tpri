@@ -91,21 +91,9 @@ class InnerBarzilaiBorwein:
                         param.data = param - step_size * grad
                 else:
                     var = var - step_size * grads[0]
-            # if log:
-            #     func_val = func(var)
-            #     grads = autograd.grad(func_val, var.parameters()) if is_layer else autograd.grad(func_val, var)
-            #     valfuncs.append(func_val)
-            #     gradnorms.append(sum([torch.norm(grad) for grad in grads]))
-
             if step_size <1e-6:
                 break
 
-        # if log:
-        #     fig = plt.figure()
-        #     plt.plot(valfuncs)
-        #     plt.plot(gradnorms)
-        #     plt.show()
-        #     print(gradnorms)
         return var
 
 
@@ -116,7 +104,6 @@ def goldstein_line_search(func, var, max_line_search, step_factor, slope_factor,
     is_layer = isinstance(var, torch.nn.Module)
     value = func(var)
     grads = autograd.grad(value, var.parameters()) if is_layer else autograd.grad(value, var)
-    # descent_dirs = [-grad /( torch.norm(grad)) for grad in grads]
     descent_dirs = [-grad /(torch.norm(grad) + 1e-12) for grad in grads]
 
     fixed_var = deepcopy(var)
@@ -140,54 +127,3 @@ def goldstein_line_search(func, var, max_line_search, step_factor, slope_factor,
     return var, step_size
 
 
-# def step(self, func, var, step_size):
-#     for k in range(self.max_iter):
-#         value = func(var)
-#         grad = autograd.grad(value, var)[0] + grad_reg(var)
-#         descent_dir = -grad/torch.norm(grad)
-#         if k == 0 and self.line_search:
-#             step_size = 2 * step_size
-#             value = value + reg(var)
-#             local_slope = grad.dot(descent_dir)
-#             decrease_target = -self.goldstein_slope_factor*local_slope
-#             next_var = var
-#             for i in range(self.max_line_search):
-#                 next_var = var + step_size * descent_dir
-#                 next_value = func(next_var) + reg(next_var)
-#                 if next_value <= value - step_size * decrease_target:
-#                     break
-#                 else:
-#                     step_size = self.goldstein_step_factor * step_size
-#                 if step_size < 1e-12:
-#                     warnings.warn('Line search failed')
-#             var = next_var
-#         else:
-#
-#             var = var + step_size * descent_dir
-#     return var, step_size
-
-# def step_layer(self, func, reg, layer, step_size, type_var):
-#
-#     for k in range(self.max_iter):
-#         value = func(layer) + reg(layer)
-#         grads = autograd.grad(value, layer.parameters())
-#         descent_dirs = [-grad / torch.norm(grad) for grad in grads]
-#         if k == 0 and self.line_search:
-#             fixed_layer = deepcopy(layer)
-#             step_size = 2 * step_size
-#             local_slope = sum([grad.dot(descent_dir) for grad, descent_dir in zip(grads, descent_dirs)])
-#             decrease_target = -self.goldstein_slope_factor*local_slope
-#             for i in range(self.max_line_search):
-#                 for param, fix_param, descent_dir in zip(layer.parameters(), fixed_layer.parameters(), descent_dirs):
-#                     param.data = fix_param + step_size*descent_dir
-#                 next_value = func(layer) + reg(layer)
-#                 if next_value <= value - step_size * decrease_target:
-#                     break
-#                 else:
-#                     step_size = self.goldstein_step_factor * step_size
-#                 if step_size < 1e-12:
-#                     warnings.warn('Line search failed')
-#         else:
-#             for param, descent_dir in zip(layer.parameters(), descent_dirs):
-#                 param.data += step_size * descent_dir
-#     return step_size

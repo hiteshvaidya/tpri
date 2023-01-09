@@ -267,9 +267,6 @@ def search_paths_similar_cfgs(exp_cfg, root_path='', variable_param=''):
                 (each entry being a dictionary)
         root_path: (str) path to the folder to search in
         variable_param: (str) param that is allowed to be different than the one given in exp_cfg
-
-    Returns:
-
     """
     exp_cfg_main = deepcopy(exp_cfg)
     found_param = search_param_in_exp_cfg(exp_cfg_main, variable_param, del_param=True)
@@ -374,24 +371,5 @@ def get_list_of_files(dir_name):
     return all_files
 
 
-# def summarize_folder_by_dict(folder):
-#     summary_file_path = folder + '/summary.txt'
-#     if os.path.exists(summary_file_path):
-#         with open(summary_file_path, 'w') as file:
-#             file.write('')
-#     all_files = get_list_of_files(folder)
-#     if len(all_files) > 0:
-#         for file_path in all_files:
-#             with open(file_path, 'rb') as file:
-#                 file_contents = load(file)
-#
-#             with open(summary_file_path, 'a') as file:
-#                 file.write(os.path.split(file_path)[1] + '\n')
-#                 for cfg in file_contents[0]:
-#                     file.write(str(cfg) + '\n')
-#                 for file_content in file_contents[1:]:
-#                     if isinstance(file_content, dict):
-#                         file.write(str(file_content) + '\n')
-#                 file.write('\n')
 
 

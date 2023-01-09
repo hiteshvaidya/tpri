@@ -10,9 +10,9 @@ nb_iter_per_log = 200
 
 
 def train_incrementally(data_cfg, model_cfg, optim_cfg, nb_log_per_interval=20):
-    """
+    '''
     Wrap the train function in a step by step optimization where the results are saved regularly
-    """
+    '''
     print('WHOLE EXP\ndata_cfg {0} \nmodel_cfg {1} \noptim_cfg {2}'.format(data_cfg, model_cfg, optim_cfg))
     iteration_interval = nb_log_per_interval*nb_iter_per_log
     output, aux_vars, log = load_exp(dict(data_cfg=data_cfg, model_cfg=model_cfg, optim_cfg=optim_cfg))
@@ -30,10 +30,6 @@ def train_incrementally(data_cfg, model_cfg, optim_cfg, nb_log_per_interval=20):
 
 def train(data_cfg, model_cfg, optim_cfg,
           input=None, aux_vars=None, log=None):
-    """
-    Main training function, 1. loads the data, 2. define the problem, 3. optimize the problem, then outputs the result
-        and the optimization measures
-    """
     train_data, test_data = get_data(**data_cfg)
 
     loss, regularization, net = make_model(train_data, **model_cfg)
@@ -48,10 +44,7 @@ def check_exp_done(info_exp):
     return check_stop(info_exp) is not None
 
 
-def run_exp(data_cfg, model_cfg, optim_cfgs, time=False, add_lr=False):
-    """
-    Solve the problem and postprocess the results
-    """
+def run_exp(data_cfg, model_cfg, optim_cfgs, time=False, add_param=None):
     info_exp = DataFrame()
     for i, optim_cfg in enumerate(optim_cfgs):
         _, _, log = train_incrementally(data_cfg, model_cfg, optim_cfg)
@@ -60,8 +53,13 @@ def run_exp(data_cfg, model_cfg, optim_cfgs, time=False, add_lr=False):
             algo_name = algo_name + optim_cfg['algo']
         if 'diff_mode' in optim_cfg.keys():
             algo_name = algo_name + '_' + optim_cfg['diff_mode']
-        if add_lr:
+        if add_param == 'lr_target':
             algo_name = algo_name + '_{:1.0e}'.format(optim_cfg['lr_target'])
+        elif add_param == 'lr':
+            algo_name = algo_name + '_{:1.0e}'.format(optim_cfg['lr'])
+        elif add_param == 'reg':
+            algo_name = algo_name + '_{:1.0e}'.format(optim_cfg['reg'])
+
         if algo_name == 'target_optim':
             algo_name += '_linearized'
         log.update(algo=[algo_name] * len(log['iteration']))
@@ -76,7 +74,6 @@ def run_exp(data_cfg, model_cfg, optim_cfgs, time=False, add_lr=False):
         info_exp.rename(columns={'iteration': 'time'}, inplace=True)
 
     return info_exp
-
 
 def split_evenly(list, nb_chunks):
     k, m = divmod(len(list), nb_chunks)
