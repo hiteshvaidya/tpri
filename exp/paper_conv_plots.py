@@ -1,7 +1,7 @@
 import os
+import sys
 from matplotlib import pyplot as plt
-
-from exp.plot_tools import plot, nice_writing, plots_folder
+from exp.plot_tools import plot, nice_writing
 from exp.exp_neck import run_exp
 
 
