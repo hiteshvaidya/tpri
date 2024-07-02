@@ -40,6 +40,32 @@ import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ```
 
+In Windows PowerShell, you need to use a different syntax to set environment variables. Here's the correct way to set the PYTHONPATH in PowerShell:
+
+```powershell
+$env:PYTHONPATH += ";D:\tpri"
+```
+
+This command appends the path "D:\tpri" to the existing PYTHONPATH environment variable. If you want to completely replace the existing PYTHONPATH, you can use:
+
+```powershell
+$env:PYTHONPATH = "D:\tpri"
+```
+
+After setting the PYTHONPATH, you can verify it by running:
+
+```powershell
+echo $env:PYTHONPATH
+```
+
+If you prefer to use the Command Prompt (cmd.exe) instead of PowerShell, you can use the original syntax:
+
+```cmd
+set PYTHONPATH=%PYTHONPATH%;D:\tpri
+```
+
+Remember that these changes to the environment variables are only temporary and will be lost when you close the terminal. If you want to make permanent changes to your PYTHONPATH, you should modify the system environment variables through the Windows Control Panel or use a script that sets these variables each time you open a new terminal session.
+
 ## Experiments
 To reproduce the plots presented in the paper run from the folder exp   
 ``python paper_conv_plots.py``
