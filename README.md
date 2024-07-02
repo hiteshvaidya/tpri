@@ -21,6 +21,24 @@ Install dependencies
 For PyTorch, the installation depends on your OS. For Mac for example, use  
 ``conda install pytorch torchvision -c pytorch``
 
+## Setup PythonPath
+Add the parent directory to the PYTHONPATH environment variable: </br>
+For Unix-like systems (Linux, macOS): </br>
+`export PYTHONPATH=$PYTHONPATH:/path/to/parent_directory`
+
+For Windows: </br>
+`set PYTHONPATH=%PYTHONPATH%;C:\path\to\parent_directory`
+
+Replace `/path/to/parent_directory` or `C:\path\to\parent_directory` with the actual path to your parent directory.
+
+**Other way is using `sys` module** </br>
+```
+import sys
+import os
+
+# Get the current script's directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+```
 
 ## Experiments
 To reproduce the plots presented in the paper run from the folder exp   
